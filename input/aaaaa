@@ -1,0 +1,67 @@
+val srcedges = graph.edges.filter(e => { e.srcId == f._1 })
+      val destedges = graph.edges.filter(e => { e.dstId == f._1 })
+      val ab = collection.mutable.ArrayBuffer[Relation]()
+      var srcs = srcedges.map(e => {
+        val timestamps = e.attr._1.split(",").map { x => getTimestamp(x.trim()) }
+        val types = e.attr._2.split(",").map { x => x.toInt }
+        for (i <- 0 until timestamps.length) {
+          ab += new Relation(timestamps(i), types(i), e.srcId, e.dstId, typenames.length, 1)
+        }
+      })
+      var dests = destedges.map(e => {
+        val timestamps = e.attr._1.split(",").map { x => getTimestamp(x.trim()) }
+        val types = e.attr._2.split(",").map { x => x.toInt }
+        for (i <- 0 until timestamps.length) {
+          ab += new Relation(timestamps(i), types(i), e.srcId, e.dstId, typenames.length, 0)
+        }
+      })
+      ab.sortWith((a, b) => a.time.before(b.time))
+
+      val abnumber = collection.mutable.ArrayBuffer[Long]()
+      val abset = collection.mutable.HashSet[Long]()
+      for (i <- 0 until ab.length) {
+        val intval = ab(i).identity.toLong
+        abnumber += intval
+        abset += intval
+      }
+
+      val arr = collection.mutable.ArrayBuffer()
+
+      for (typeedge <- abset) {
+        var j = 0
+        val subarr = collection.mutable.ArrayBuffer[Array[Long]]()
+
+        while (j < abnumber.length) {
+          //subarr.+=()
+          val longarr = collection.mutable.ArrayBuffer[Long]()
+          while (abnumber(j) != typeedge) {
+            longarr += abnumber(j)
+            // subarr+= aa
+            j += 1
+          }
+          if (longarr.length != 0) {
+            subarr += longarr.toArray
+          }
+          j += 1
+        }
+
+        //typeedge, arr
+        val sq_fq = collection.mutable.Seq[Array[Array[Long]]]()
+        val type_ele = Array(typeedge)
+        for (i <- 1 until subarr.length) {
+          // val longarr = collection.mutable.ArrayBuffer[Long]()
+          sq_fq.++:(Array(type_ele, subarr))
+        }
+
+        // println(sq_fq)
+
+        val prefixSpan = new PrefixSpan()
+          .setMinSupport(0.5)
+          .setMaxPatternLength(5)
+        val model = prefixSpan.run(sc.parallelize(sq_fq))
+        model.freqSequences.collect().foreach { freqSequence =>
+          println(
+            freqSequence.sequence.map(_.mkString("[", ", ", "]")).mkString("[", ", ", "]") +
+              ", " + freqSequence.freq)
+        }
+      }
